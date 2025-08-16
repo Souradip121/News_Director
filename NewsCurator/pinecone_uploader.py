@@ -3,7 +3,8 @@ import uuid
 from typing import List
 from pinecone import Pinecone
 from fetcher import NewsArticle # Import the schema from fetcher.py
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- Configuration ---
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_HOST = os.getenv("PINECONE_HOST")
@@ -29,7 +30,7 @@ def upsert_articles_to_pinecone(articles: List[NewsArticle]):
             # must match the 'field_map' you configured in your Pinecone index settings.
             record = {
                 "_id": str(uuid.uuid4()),  # Generate a unique ID for each record
-                "story_summary": article.story_summary,
+                "text": article.story_summary,
                 # All other fields from the Pydantic model become the metadata
                 "title": article.title,
                 "source_url": article.source_url,

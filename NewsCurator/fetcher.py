@@ -2,10 +2,18 @@ import requests
 import os
 from typing import List
 from pydantic import BaseModel, Field
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- Configuration ---
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
+
+# Debug: Check if API key is loaded
+if not PERPLEXITY_API_KEY:
+    print("❌ ERROR: PERPLEXITY_API_KEY not found in environment variables")
+    exit(1)
+
+print(f"✅ API Key loaded: {PERPLEXITY_API_KEY[:10]}...{PERPLEXITY_API_KEY[-4:]}")
 
 # --- Data Structures (Schema) ---
 
@@ -32,7 +40,7 @@ def fetch_news_from_perplexity() -> List[NewsArticle]:
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "sonar-medium-online",
+        "model": "sonar-pro",
         "messages": [
             {
                 "role": "system",
