@@ -16,7 +16,7 @@ response = requests.post(
         'messages': [
             {
                 'role': 'user',
-                'content': '10 news stories that can made into a film or web series.'
+                'content': '50 Indian crime news stories that can made into a film or web series.'
             }
         ],
         'search_domain_filter': ['timesofindia.indiatimes.com'],
@@ -25,3 +25,4 @@ response = requests.post(
 )
 
 print(response.json())
+
