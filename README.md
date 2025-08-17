@@ -27,11 +27,11 @@ News Director is an intelligent news processing system that combines semantic se
 ## 🏗️ Architecture & Flow
 
 ### System Architecture Overview
+<img width="2025" height="2531" alt="EVERY (2)" src="https://github.com/user-attachments/assets/0cb8c0b7-8397-464a-9db8-80d7d61d4025" />
 
 The News Director system consists of two main components working in tandem:
 
 #### 1. News Curation Pipeline
-![News Curation Architecture](https://github.com/user-attachments/assets/1234567890abcdef1234567890abcdef12345678)
 
 The first component handles the data ingestion and processing:
 - **News Curator**: Collects news stories from various sources
@@ -40,7 +40,6 @@ The first component handles the data ingestion and processing:
 - **Pinecone Storage**: Stores processed content as vector embeddings using Llama-text-embed-v2
 
 #### 2. Semantic Search & AI Analysis
-![Semantic Search Architecture](https://github.com/user-attachments/assets/abcdef1234567890abcdef1234567890abcdef12)
 
 The second component provides the user-facing search and analysis:
 - **Pinecone Vector DB**: Retrieves relevant content using semantic similarity
