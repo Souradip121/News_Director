@@ -27,7 +27,7 @@ News Director is an intelligent news processing system that combines semantic se
 ## 🏗️ Architecture & Flow
 
 ### System Architecture Overview
-<img width="2025" height="2531" alt="EVERY (2)" src="https://github.com/user-attachments/assets/0cb8c0b7-8397-464a-9db8-80d7d61d4025" />
+<img width="2025" height="2531" alt="model architecture" src="https://github.com/user-attachments/assets/094aa0bc-768e-4785-b713-23a610b8939f" />
 
 The News Director system consists of two main components working in tandem:
 
