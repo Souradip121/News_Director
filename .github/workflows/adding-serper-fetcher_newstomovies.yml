@@ -1,0 +1,77 @@
+name: Build and deploy Python app to Azure Web App - newstomovies
+
+on:
+  push:
+    branches:
+      - adding-serper-fetcher
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Create and start virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies and prepare deployment
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r SemanticSearcher/requirements.txt
+          
+          # Create clean deployment directory with only SemanticSearcher contents
+          mkdir -p deployment
+          cp -r SemanticSearcher/* deployment/
+          
+          # Remove cache files
+          find deployment -name "__pycache__" -type d -exec rm -rf {} + || true
+          find deployment -name "*.pyc" -delete || true
+
+      - name: Upload artifact for deployment jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: deployment/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+          path: .
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_58AAC764EC984C2FA49CD58C48653A2C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_01B112969CF4426DAC5AD7C9C6976A10 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_FB00C0C387AE489682E83F7B27EAECCC }}
+
+      - name: 'Deploy to Azure Web App'
+        uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
+        with:
+          app-name: 'newstomovies'
+          slot-name: 'Production'
+          package: '.'
+          startup-command: 'python -m streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false'
