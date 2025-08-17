@@ -10,18 +10,43 @@ News Director is an intelligent news processing system that combines semantic se
 
 ### Core Technologies
 
-- **Vector Database**: Pinecone - For storing and querying semantic embeddings
+- **Vector Database**: Pinecone with Llama-text-embed-v2 embeddings
 - **AI/ML Platform**: Azure OpenAI Service (GPT-4o model)
-- **Semantic Search**: Vector similarity search using embeddings
-- **Language Processing**: Natural Language Processing for content analysis
+- **Semantic Search**: Vector similarity search using integrated embeddings
+- **Web Interface**: Streamlit for interactive user experience
+- **Content Processing**: Perplexity API for enhanced understanding
 
 ### Services & APIs
 
-- **Pinecone Vector Database**: Hosts semantic embeddings for news content
-- **Azure OpenAI**: Provides language model capabilities for content understanding and generation
-- **GPT-4o Model**: Latest OpenAI model for advanced text processing
+- **Pinecone Vector Database**: Hosts semantic embeddings with integrated Llama-text-embed-v2 model
+- **Azure OpenAI**: Provides language model capabilities (GPT-4o) for content generation and analysis
+- **Perplexity API**: Enhanced content understanding and processing
+- **Serper API**: URL searching based on news headlines
+- **Streamlit**: Modern web framework for the user interface
 
 ## 🏗️ Architecture & Flow
+
+### System Architecture Overview
+
+The News Director system consists of two main components working in tandem:
+
+#### 1. News Curation Pipeline
+![News Curation Architecture](https://github.com/user-attachments/assets/1234567890abcdef1234567890abcdef12345678)
+
+The first component handles the data ingestion and processing:
+- **News Curator**: Collects news stories from various sources
+- **Perplexity Integration**: Uses Perplexity API for enhanced content understanding  
+- **Serper API**: Searches URLs based on news headlines for comprehensive coverage
+- **Pinecone Storage**: Stores processed content as vector embeddings using Llama-text-embed-v2
+
+#### 2. Semantic Search & AI Analysis
+![Semantic Search Architecture](https://github.com/user-attachments/assets/abcdef1234567890abcdef1234567890abcdef12)
+
+The second component provides the user-facing search and analysis:
+- **Pinecone Vector DB**: Retrieves relevant content using semantic similarity
+- **Azure OpenAI Integration**: Powers intelligent analysis and content generation
+- **Streamlit Interface**: Provides an intuitive web interface for user interactions
+- **User Community**: Enables collaborative exploration of news-to-movie adaptations
 
 ```
 News Content → Preprocessing → Embedding Generation → Vector Storage (Pinecone)
@@ -42,9 +67,11 @@ User Query → Query Processing → Semantic Search → Relevant Results ← AI 
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
+- Python 3.8 or higher
 - Azure OpenAI Service account
 - Pinecone account and API key
+- Perplexity API access
+- Serper API key
 - Git
 
 ### Environment Configuration
@@ -56,100 +83,199 @@ git clone <repository-url>
 cd News_Director
 ```
 
-2. Navigate to the SemanticSearcher directory:
+2. Set up the News Curation Pipeline:
 
 ```bash
-cd SemanticSearcher
+cd NewsCurator
+python -m venv myenv
+# Windows
+myenv\Scripts\activate
+# Linux/Mac
+source myenv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-3. Install dependencies:
+3. Set up the Semantic Searcher:
 
 ```bash
-npm install
+cd ../SemanticSearcher
+pip install -r requirements.txt
 ```
 
-4. Configure environment variables by updating `.env` file:
+4. Configure environment variables by creating separate `.env` files in each directory:
 
-```env
-# Pinecone Configuration
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_HOST=your_pinecone_host_url
+> **Important**: Each component requires its own `.env` file with different API keys. Use the provided example files as templates.
 
-# Azure OpenAI Configuration
-AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-AZURE_OPENAI_API_VERSION=2024-12-01-preview
+#### NewsCurator Environment Setup
+Copy the example file and configure your API keys:
+
+```bash
+cd NewsCurator
+cp .env.example .env
+# Edit .env file with your actual API keys
 ```
+
+The `NewsCurator/.env` should contain:
+- **PERPLEXITY_API_KEY**: For enhanced content processing
+- **PINECONE_API_KEY**: For vector database storage
+- **PINECONE_HOST**: Your Pinecone index URL
+- **SERPER_API_KEY**: For URL search functionality
+
+#### SemanticSearcher Environment Setup
+Copy the example file and configure your API keys:
+
+```bash
+cd SemanticSearcher  
+cp .env.example .env
+# Edit .env file with your actual API keys
+```
+
+The `SemanticSearcher/.env` should contain:
+- **PINECONE_API_KEY**: Same as NewsCurator (shared database)
+- **PINECONE_HOST**: Same as NewsCurator (shared database)  
+- **AZURE_OPENAI_API_KEY**: For AI-powered analysis
+- **AZURE_OPENAI_ENDPOINT**: Your Azure OpenAI endpoint
+- **AZURE_OPENAI_DEPLOYMENT**: Model deployment name (typically "gpt-4o")
+- **AZURE_OPENAI_API_VERSION**: API version (recommended: "2024-12-01-preview")
+
+> **Security Note**: Never commit actual `.env` files to version control. The `.env.example` files are provided as templates only.
 
 ### Required Services Setup
 
 #### Pinecone Setup
 
 1. Create a Pinecone account at [pinecone.io](https://pinecone.io)
-2. Create a new index with appropriate dimensions
-3. Note your API key and host URL
+2. Create a new index with integrated Llama-text-embed-v2 model
+3. Configure the namespace as "news-articles-namespace"
+4. Note your API key and host URL
 
 #### Azure OpenAI Setup
 
 1. Create an Azure OpenAI resource in Azure Portal
 2. Deploy the GPT-4o model
-3. Obtain your API key and endpoint URL
+3. Optionally deploy text-embedding models if using manual embeddings
+4. Obtain your API key and endpoint URL
+
+#### Additional API Setup
+
+1. **Perplexity API**: Sign up at [perplexity.ai](https://perplexity.ai) for content processing
+2. **Serper API**: Get your API key from [serper.dev](https://serper.dev) for URL searching
 
 ## 🚀 How to Run
 
-### SemanticSearcher Component
+### 1. News Curation Pipeline
 
-1. Navigate to the SemanticSearcher directory:
+First, collect and process news content:
+
+```bash
+cd NewsCurator
+# Activate virtual environment
+myenv\Scripts\activate  # Windows
+# source myenv/bin/activate  # Linux/Mac
+
+# Run the news collection and upload process
+python main.py
+```
+
+### 2. Semantic Search Interface
+
+Launch the interactive web interface:
 
 ```bash
 cd SemanticSearcher
+
+# Start the Streamlit application
+streamlit run app.py
 ```
 
-2. Start the semantic search service:
+### 3. Testing Connections
+
+Verify your setup:
 
 ```bash
-npm start
+cd SemanticSearcher
+python test_connection.py
 ```
 
 ### Development Mode
 
-```bash
-npm run dev
-```
-
-### Running Tests
+For development and testing:
 
 ```bash
-npm test
+# Test individual components
+python searcher.py  # Direct searcher testing
+python -c "from searcher import NewsMovieSearcher; s = NewsMovieSearcher()"  # Quick test
 ```
 
 ## 📁 Project Structure
 
 ```
 News_Director/
-├── SemanticSearcher/           # Core semantic search functionality
-│   ├── .env                   # Environment configuration
-│   ├── package.json           # Dependencies and scripts
-│   ├── src/                   # Source code
-│   └── ...
-├── README.md                  # This file
-└── ...
+├── NewsCurator/               # News collection and processing pipeline
+│   ├── fetcher.py            # News content fetching functionality
+│   ├── main.py               # Main execution script
+│   ├── pinecone_uploader.py  # Vector database upload logic
+│   ├── serper_searcher.py    # Serper API integration
+│   ├── schemas.py            # Data schemas and validation
+│   ├── requirements.txt      # Python dependencies
+│   ├── .env.example          # Environment configuration template
+│   ├── .env                  # Your actual environment variables (not in git)
+│   └── myenv/                # Virtual environment
+├── SemanticSearcher/          # Semantic search and AI analysis
+│   ├── app.py                # Streamlit web application
+│   ├── searcher.py           # Core search functionality
+│   ├── config.py             # Configuration management
+│   ├── requirements.txt      # Python dependencies
+│   ├── test_connection.py    # Connection testing utilities
+│   ├── .env.example          # Environment configuration template
+│   └── .env                  # Your actual environment variables (not in git)
+├── README.md                 # Project documentation
+└── LICENSE                   # License information
 ```
 
 ## 🔍 Features
 
+### News Curation Pipeline
+- **Automated News Collection**: Fetches news from multiple sources
+- **Enhanced Content Processing**: Uses Perplexity API for deeper understanding
+- **URL Discovery**: Serper integration for finding relevant source URLs
+- **Vector Embedding**: Automatic conversion to embeddings using Llama-text-embed-v2
+
+### Semantic Search & Analysis
+- **Movie Plot Generation**: AI-powered movie ideas from news stories
+- **Category-Based Search**: Filter by news categories for targeted inspiration
+- **Date-Range Filtering**: Search news from specific time periods
+- **Custom Queries**: Natural language search for specific themes
+- **Interactive Web Interface**: User-friendly Streamlit application
+
+### Technical Features
 - **Semantic Search**: Advanced vector-based search using contextual understanding
-- **AI-Powered Analysis**: GPT-4o integration for intelligent content processing
-- **Scalable Vector Storage**: Pinecone database for efficient similarity matching
-- **News Content Processing**: Specialized handling of news articles and content
-- **Real-time Search**: Fast query processing and result retrieval
+- **AI-Powered Analysis**: GPT-4o integration for creative content generation
+- **Scalable Vector Storage**: Pinecone database with integrated embeddings
+- **Real-time Processing**: Fast query processing and result retrieval
+- **Dark Mode Support**: Responsive UI with theme compatibility
 
 ## 🔐 Security & Configuration
 
-- API keys are stored securely in environment variables
-- Azure OpenAI provides enterprise-grade security
-- Pinecone offers secure vector storage with access controls
+### Environment Variables Security
+- **Never commit `.env` files**: Actual API keys should never be in version control
+- **Use `.env.example` templates**: Copy and rename to `.env` for each component
+- **Component-specific configurations**: Each directory has its own `.env` file with required APIs only
+- **API key rotation**: Regularly rotate API keys for enhanced security
+
+### Service Security Features
+- **Azure OpenAI**: Enterprise-grade security with role-based access controls
+- **Pinecone**: Secure vector storage with API key authentication and VPC support
+- **Perplexity API**: Secure content processing with rate limiting
+- **Serper API**: Protected search functionality with API quotas
+
+### Best Practices
+1. Keep API keys confidential and rotate them regularly
+2. Use different API keys for development and production environments  
+3. Monitor API usage and set up billing alerts
+4. Implement proper error handling for API failures
+5. Use environment-specific `.env` files for different deployment stages
 
 ## 🤝 Contributing
 
