@@ -31,13 +31,22 @@ def upsert_articles_to_pinecone(articles: List[NewsArticle]):
             record = {
                 "_id": str(uuid.uuid4()),  # Generate a unique ID for each record
                 "text": article.story_summary,
-                # All other fields from the Pydantic model become the metadata
+            }
+            
+            # Add metadata fields, filtering out None values
+            metadata = {
                 "title": article.title,
-                "source_url": article.source_url,
                 "publication_date": article.publication_date,
                 "source_name": article.source_name,
                 "category": article.category
             }
+            
+            # Only add source_url if it's not None
+            if article.source_url is not None:
+                metadata["source_url"] = article.source_url
+            
+            # Add all non-None metadata to the record
+            record.update(metadata)
             records_to_upsert.append(record)
         
         print(f"Upserting {len(records_to_upsert)} records to Pinecone...")

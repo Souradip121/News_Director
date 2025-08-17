@@ -20,7 +20,7 @@ print(f"✅ API Key loaded: {PERPLEXITY_API_KEY[:10]}...{PERPLEXITY_API_KEY[-4:]
 class NewsArticle(BaseModel):
     title: str = Field(description="The full headline of the news article.")
     story_summary: str = Field(description="A concise, one or two-sentence summary of the news story.")
-    source_url: str = Field(description="The direct URL to the original article.")
+    source_url: str | None = Field(default=None, description="The direct URL to the original article (populated from search_results).")
     publication_date: str = Field(description="The date the article was published, in YYYY-MM-DD format.")
     source_name: str = Field(description="The name of the news publication, e.g., 'The Times of India'.")
     category: str = Field(description="The primary category of the news, e.g., 'Crime'.")
@@ -48,7 +48,7 @@ def fetch_news_from_perplexity() -> List[NewsArticle]:
             },
             {
                 "role": "user",
-                "content": "Provide a list of 25 distinct Indian crime news stories from the last month that could be adapted into a film or web series."
+                "content": "Provide a list of 25 distinct Indian crime news stories from the last month that could be adapted into a film or web series. Include title, summary, publication date, source name, and category for each story."
             }
         ],
         "response_format": {
@@ -62,10 +62,25 @@ def fetch_news_from_perplexity() -> List[NewsArticle]:
         response.raise_for_status()
         data = response.json()
         json_content = data["choices"][0]["message"]["content"]
+        print(data)
+        # Extract search results for URLs
+        search_results = data.get("search_results", [])
         
         news_list = NewsArticleList.model_validate_json(json_content)
-        print(f"Successfully fetched and validated {len(news_list.articles)} articles.")
-        return news_list.articles
+        
+        # Match articles with search results to populate URLs
+        articles = news_list.articles
+        for i, article in enumerate(articles):
+            if i < len(search_results):
+                search_result = search_results[i]
+                article.source_url = search_result.get("url")
+                # Optionally update publication date if available and more accurate
+                if search_result.get("date") and not article.publication_date:
+                    article.publication_date = search_result["date"]
+        
+        print(f"Successfully fetched and validated {len(articles)} articles.")
+        print(f"Found {len(search_results)} search results with URLs.")
+        return articles
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
         print(f"Response body: {response.text}")
