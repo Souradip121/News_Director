@@ -28,19 +28,29 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
       
       - name: Install dependencies
-        run: pip install -r SemanticSearcher/requirements.txt
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r SemanticSearcher/requirements.txt
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deployment
+          cp -r SemanticSearcher/* deployment/
+          # Remove unnecessary files
+          find deployment -name "__pycache__" -type d -exec rm -rf {} + || true
+          find deployment -name "*.pyc" -delete || true
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            .
-            !venv/
+          path: deployment/
 
   deploy:
     runs-on: ubuntu-latest
@@ -54,6 +64,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
+          path: .
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -68,6 +79,5 @@ jobs:
         with:
           app-name: 'newstomovies'
           slot-name: 'Production'
-
-          
-
+          package: '.'
+          startup-command: 'python -m streamlit run app.py --server.port=8000 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false'
