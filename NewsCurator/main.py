@@ -17,5 +17,3 @@ if __name__ == "__main__":
     
     print("--- Process Finished ---")
 
-if __name__ == "__main__":
-    main()
