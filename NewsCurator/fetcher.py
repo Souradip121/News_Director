@@ -1,10 +1,13 @@
 import requests
 import os
 import json
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from typing import List, Any, Dict
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from serper_searcher import search_article_url
+from schemas import NewsArticle, NewsArticleWithUrl, NewsArticleList
 
 load_dotenv()
 
@@ -72,96 +75,110 @@ if not PERPLEXITY_API_KEY:
 
 print(f"✅ API Key loaded: {PERPLEXITY_API_KEY[:10]}...{PERPLEXITY_API_KEY[-4:]}")
 
-# --- Data Structures (Schema) ---
-
-class NewsArticle(BaseModel):
-    title: str = Field(description="The full headline of the news article.")
-    story_summary: str = Field(description="A concise, one or two-sentence summary of the news story.")
-    publication_date: str = Field(description="The date the article was published, in YYYY-MM-DD format.")
-    source_name: str = Field(description="The name of the news publication, e.g., 'The Times of India'.")
-    category: str = Field(description="The primary category of the news, e.g., 'Crime'.")
-
-class NewsArticleWithUrl(BaseModel):
-    title: str = Field(description="The full headline of the news article.")
-    story_summary: str = Field(description="A concise, one or two-sentence summary of the news story.")
-    source_url: str = Field(description="The direct URL to the original article.")
-    publication_date: str = Field(description="The date the article was published, in YYYY-MM-DD format.")
-    source_name: str = Field(description="The name of the news publication, e.g., 'The Times of India'.")
-    category: str = Field(description="The primary category of the news, e.g., 'Crime'.")
-
-class NewsArticleList(BaseModel):
-    articles: List[NewsArticle]
-
 # --- Core Function ---
 
 def fetch_news_from_perplexity() -> List[NewsArticleWithUrl]:
     """
-    Fetches a structured list of news articles from the Perplexity API and enriches them with URLs from Serper.
+    Fetches a structured list of news articles from the Perplexity API for the previous 12 months
+    and enriches them with URLs from Serper. Uploads to Pinecone after each month.
     """
-    print("Fetching news from Perplexity API...")
+    # Import here to avoid circular import
+    from pinecone_uploader import upsert_articles_to_pinecone
     
-    prompt_content = (
-        "Find 10 individual Indian crime news articles from the last month that could be adapted into a film or web series. "
-        "Provide the title, a 5 line short summary, the publication date, and the source name for each article. "
-        "Focus on accuracy and real news stories."
-    )
+    print("Fetching news from Perplexity API for previous 12 months...")
+    
+    # Current date reference
+    current_date = datetime(2025, 8, 17)
+    total_articles_processed = 0
+    
+    # Loop through previous 12 months (1 year)
+    for month_offset in range(1, 13):
+        # Calculate the target month
+        target_month = current_date - relativedelta(months=month_offset)
+        
+        # Calculate start and end dates for the month
+        start_date = target_month.replace(day=1)
+        # Get last day of the month
+        if target_month.month == 12:
+            next_month = target_month.replace(year=target_month.year + 1, month=1, day=1)
+        else:
+            next_month = target_month.replace(month=target_month.month + 1, day=1)
+        end_date = next_month - timedelta(days=1)
+        
+        # Format dates for API (MM/DD/YYYY format required by Perplexity)
+        start_date_str = f"{start_date.month}/{start_date.day}/{start_date.year}"
+        end_date_str = f"{end_date.month}/{end_date.day}/{end_date.year}"
+        
+        print(f"Fetching 10 articles from {target_month.strftime('%B %Y')} ({start_date_str} to {end_date_str})...")
+        
+        prompt_content = (
+            f"Find exactly 10 individual Indian crime news articles that could be adapted into a film or web series. "
+            "Provide the title, a detailed 5 line summary, the publication date, and the category for each article. "
+            "Focus on accuracy and real news stories from major Indian news sources."
+        )
 
-    headers = {
-        "Authorization": f'Bearer {PERPLEXITY_API_KEY}',
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "sonar-reasoning-pro",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a factual data retrieval assistant. Your primary goal is accuracy. Provide real news stories with exact titles and publication details."
-            },
-            {
-                "role": "user",
-                "content": prompt_content
-            }
-        ],
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {"schema": NewsArticleList.model_json_schema()}
+        headers = {
+            "Authorization": f'Bearer {PERPLEXITY_API_KEY}',
+            "Content-Type": "application/json"
         }
-    }
+        payload = {
+            "model": "sonar-reasoning-pro",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": f"You are a factual data retrieval assistant specializing in Indian crime news from {target_month.strftime('%B %Y')}. Your primary goal is accuracy. Provide exactly 10 real news stories with exact titles and publication details from that specific month."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_content
+                }
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"schema": NewsArticleList.model_json_schema()}
+            },
+            "search_after_date_filter": start_date_str,
+            "search_before_date_filter": end_date_str
+        }
 
-    try:
-        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
-        
-        # Extract valid JSON using the new function
-        json_data = extract_valid_json(data)
-        
-        news_list = NewsArticleList.model_validate(json_data)
-        print(f"Successfully fetched {len(news_list.articles)} articles from Perplexity.")
-        
-        # Now search for URLs using Serper
-        enriched_articles = []
-        for article in news_list.articles:
-            print(f"Searching URL for: {article.title[:50]}...")
-            url = search_article_url(article.title, article.source_name)
+        try:
+            response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
             
-            enriched_article = NewsArticleWithUrl(
-                title=article.title,
-                story_summary=article.story_summary,
-                source_url=url or "URL not found",
-                publication_date=article.publication_date,
-                source_name=article.source_name,
-                category=article.category
-            )
-            enriched_articles.append(enriched_article)
-        
-        print(f"Successfully enriched {len(enriched_articles)} articles with URLs.")
-        return enriched_articles
-        
-    except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-        print(f"Response body: {response.text}")
-        return []
-    except Exception as err:
-        print(f"An error occurred during fetch: {err}")
-        return []
+            # Extract valid JSON using the new function
+            json_data = extract_valid_json(data)
+            
+            news_list = NewsArticleList.model_validate(json_data)
+            print(f"Successfully fetched {len(news_list.articles)} articles from {target_month.strftime('%B %Y')}.")
+            
+            # Search for URLs using Serper for this month's articles
+            month_enriched_articles = []
+            for article in news_list.articles:
+                print(f"Searching URL for: {article.title[:50]}...")
+                url = search_article_url(article.title)
+                
+                enriched_article = NewsArticleWithUrl(
+                    title=article.title,
+                    story_summary=article.story_summary,
+                    source_url=url or "URL not found",
+                    publication_date=article.publication_date,
+                    category=article.category
+                )
+                month_enriched_articles.append(enriched_article)
+            
+            # Upload this month's articles to Pinecone immediately
+            if month_enriched_articles:
+                print(f"Uploading {len(month_enriched_articles)} articles from {target_month.strftime('%B %Y')} to Pinecone...")
+                upsert_articles_to_pinecone(month_enriched_articles)
+                total_articles_processed += len(month_enriched_articles)
+            
+        except requests.exceptions.HTTPError as http_err:
+            print(f"HTTP error occurred for {target_month.strftime('%B %Y')}: {http_err}")
+            continue
+        except Exception as err:
+            print(f"An error occurred during fetch for {target_month.strftime('%B %Y')}: {err}")
+            continue
+    
+    print(f"Successfully processed and uploaded {total_articles_processed} total articles from 12 months.")
+    return []  # Return empty list since we're uploading as we go

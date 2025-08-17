@@ -1,5 +1,4 @@
 from fetcher import fetch_news_from_perplexity
-from pinecone_uploader import upsert_articles_to_pinecone
 
 def main():
     """
@@ -7,14 +6,14 @@ def main():
     """
     print("--- Starting News Curation and Upsert Process ---")
     
-
+    # Fetch the data from Perplexity and upload to Pinecone month by month
+    fetch_news_from_perplexity()
     
-    # Fetch the data from Perplexity
-    news_articles = fetch_news_from_perplexity()
+    print("--- Process Finished ---")
 
-    # If data was fetched successfully, store it in Pinecone
-    if news_articles:
-        upsert_articles_to_pinecone(news_articles)
+if __name__ == "__main__":
+    main()
+    
     
     print("--- Process Finished ---")
 

@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import List
 from pinecone import Pinecone
-from fetcher import NewsArticle # Import the schema from fetcher.py
+from schemas import NewsArticleWithUrl  # Import from schemas instead
 from dotenv import load_dotenv
 load_dotenv()
 # --- Configuration ---
@@ -11,7 +11,7 @@ PINECONE_HOST = os.getenv("PINECONE_HOST")
 
 # --- Core Function ---
 
-def upsert_articles_to_pinecone(articles: List[NewsArticle]):
+def upsert_articles_to_pinecone(articles: List[NewsArticleWithUrl]):
     """
     Connects to Pinecone and upserts the fetched articles.
     """
@@ -35,7 +35,6 @@ def upsert_articles_to_pinecone(articles: List[NewsArticle]):
                 "title": article.title,
                 "source_url": article.source_url,
                 "publication_date": article.publication_date,
-                "source_name": article.source_name,
                 "category": article.category
             }
             records_to_upsert.append(record)
@@ -49,4 +48,5 @@ def upsert_articles_to_pinecone(articles: List[NewsArticle]):
         print("Upsert complete!")
 
     except Exception as err:
+        print(f"An error occurred during Pinecone upsert: {err}")
         print(f"An error occurred during Pinecone upsert: {err}")
