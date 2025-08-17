@@ -138,8 +138,8 @@ class NewsMovieSearcher:
         """Return fallback categories only from database"""
         return []  # Only use categories from actual database content
     
-    def search_articles_by_metadata(self, category: str = None, date_filter: str = None) -> List[Dict]:
-        """Search articles by metadata filters using dummy vector query for metadata retrieval"""
+    def search_articles_by_metadata(self, category: str = None, date_filter: str = None, query_text: str = None) -> List[Dict]:
+        """Search articles using Pinecone's integrated embedding search"""
         try:
             # First get index stats to check if there are any vectors
             stats = self.index.describe_index_stats()
@@ -148,75 +148,100 @@ class NewsMovieSearcher:
                 print("No vectors found in index")
                 return []
             
-            # Since Pinecone uses 1024-dimension embeddings, use a dummy vector for metadata query
-            # This is a workaround to get metadata without proper vector search
-            dummy_vector = [0.0] * 1024  # Use 1024 dimensions for Pinecone's built-in embeddings
+            # Use a generic query text if none provided
+            if not query_text:
+                if category:
+                    query_text = f"News articles about {category}"
+                else:
+                    query_text = "General news articles"
             
-            # Build filter for category if specified
-            filter_dict = {}
-            if category:
-                filter_dict['category'] = {'$eq': category}
-            
-            # Query with dummy vector to get metadata
-            query_result = self.index.query(
-                vector=dummy_vector,
+            # Use Pinecone's integrated embedding search
+            query_result = self.index.search(
                 namespace="news-articles-namespace",
-                top_k=50,  # Get more articles
-                include_metadata=True,
-                filter=filter_dict if filter_dict else None
+                query={
+                    "inputs": {"text": query_text},
+                    "top_k": 100  # Get more results to filter later if needed
+                },
+                fields=["title", "category", "publication_date", "source_url", "text"]
             )
             
+            # Process search results
             articles = []
-            for match in query_result.matches:
-                if match.metadata:
-                    articles.append({
-                        'title': match.metadata.get('title', 'No title'),
-                        'category': match.metadata.get('category', 'Unknown'),
-                        'publication_date': match.metadata.get('publication_date', 'Unknown date'),
-                        'source_url': match.metadata.get('source_url', ''),
-                        'text': match.metadata.get('text', '')[:500] + '...',
-                        'score': match.score
-                    })
+            if hasattr(query_result, 'result') and hasattr(query_result.result, 'hits'):
+                for hit in query_result.result.hits:
+                    fields = hit.fields if hasattr(hit, 'fields') else {}
+                    article = {
+                        'title': fields.get('title', 'No title'),
+                        'category': fields.get('category', 'Unknown'),
+                        'publication_date': fields.get('publication_date', 'Unknown date'),
+                        'source_url': fields.get('source_url', ''),
+                        'text': fields.get('text', '')[:500] + '...',
+                        'score': hit._score if hasattr(hit, '_score') else 0.0
+                    }
+                    
+                    # Apply category filter if specified
+                    if category is None or article['category'] == category:
+                        articles.append(article)
+                        
+                    # Limit to 50 results
+                    if len(articles) >= 50:
+                        break
             
-            print(f"Retrieved {len(articles)} articles from database")
+            print(f"Retrieved {len(articles)} articles using integrated embeddings with query: '{query_text}'")
             return articles
             
         except Exception as e:
             print(f"Error searching articles: {str(e)}")
-            # Try with different vector dimensions if 1024 fails
-            try:
-                print("Trying with 1536 dimensions...")
-                dummy_vector = [0.0] * 1536
-                query_result = self.index.query(
-                    vector=dummy_vector,
-                    namespace="news-articles-namespace",
-                    top_k=20,
-                    include_metadata=True
-                )
-                
-                articles = []
-                for match in query_result.matches:
-                    if match.metadata:
-                        articles.append({
-                            'title': match.metadata.get('title', 'No title'),
-                            'category': match.metadata.get('category', 'Unknown'),
-                            'publication_date': match.metadata.get('publication_date', 'Unknown date'),
-                            'source_url': match.metadata.get('source_url', ''),
-                            'text': match.metadata.get('text', '')[:500] + '...',
-                            'score': match.score
-                        })
-                
-                print(f"Retrieved {len(articles)} articles with 1536 dimensions")
-                return articles
-                
-            except Exception as e2:
-                print(f"Both 1024 and 1536 dimensions failed: {e2}")
-                return []
+            return []
     
     def _get_sample_articles(self) -> List[Dict]:
         """Return sample articles when database queries fail - using empty list to force database queries"""
         # Return empty list to force using actual database content instead of samples
         return []
+    
+
+    
+    def semantic_search(self, query: str, category: str = None, top_k: int = 10) -> List[Dict]:
+        """Perform semantic search using Pinecone's integrated embeddings"""
+        try:
+            # Use Pinecone's integrated embedding search
+            query_result = self.index.search(
+                namespace="news-articles-namespace",
+                query={
+                    "inputs": {"text": query},
+                    "top_k": top_k * 2  # Get more results to filter later if needed
+                },
+                fields=["title", "category", "publication_date", "source_url", "text"]
+            )
+            
+            # Process search results
+            articles = []
+            if hasattr(query_result, 'result') and hasattr(query_result.result, 'hits'):
+                for hit in query_result.result.hits:
+                    fields = hit.fields if hasattr(hit, 'fields') else {}
+                    article = {
+                        'title': fields.get('title', 'No title'),
+                        'category': fields.get('category', 'Unknown'),
+                        'publication_date': fields.get('publication_date', 'Unknown date'),
+                        'source_url': fields.get('source_url', ''),
+                        'text': fields.get('text', '')[:500] + '...',
+                        'score': hit._score if hasattr(hit, '_score') else 0.0
+                    }
+                    
+                    # Apply category filter if specified
+                    if category is None or article['category'] == category:
+                        articles.append(article)
+                        
+                    # Limit to requested top_k results
+                    if len(articles) >= top_k:
+                        break
+            
+            print(f"Semantic search returned {len(articles)} articles using integrated embeddings for query: '{query}'")
+            return articles
+            
+        except Exception as e:
+            print(f"Error in semantic search: {str(e)}")
+            return []
     
     def generate_movie_ideas(self, articles: List[Dict], genre: str, query: str) -> str:
         """Generate movie ideas using Azure OpenAI based on articles and genre"""
@@ -283,8 +308,9 @@ Provide thoughtful and creative {genre} movie concepts, ending with:
     def search_movies_by_genre(self, category: str) -> Dict[str, Any]:
         """Search for news stories from a specific category that could inspire movies"""
         try:
-            # Search for articles in the specific category
-            articles = self.search_articles_by_metadata(category=category)
+            # Use semantic search to find articles relevant to movie ideas in this category
+            semantic_query = f"movie-worthy stories dramatic events {category} news"
+            articles = self.semantic_search(semantic_query, category=category, top_k=15)
             
             if not articles:
                 return {
@@ -367,8 +393,9 @@ Provide thoughtful and creative {genre} movie concepts, ending with:
     def suggest_genre_plots(self, category: str) -> Dict[str, Any]:
         """Generate creative movie plot suggestions based on news stories from a specific category"""
         try:
-            # Get articles from the specific category
-            articles = self.search_articles_by_metadata(category=category)
+            # Use semantic search to find dramatic and plot-worthy stories
+            semantic_query = f"dramatic compelling storylines plot-worthy {category} human interest stories"
+            articles = self.semantic_search(semantic_query, category=category, top_k=12)
             
             if not articles:
                 return {
@@ -379,7 +406,7 @@ Provide thoughtful and creative {genre} movie concepts, ending with:
                     'category': category
                 }
             
-            # Generate plot suggestions
+            # Generate plot suggestions with more detailed prompt
             query = f"""Create detailed movie plot suggestions inspired by {category} news stories.
             For each suggestion, include:
             1. A compelling logline or premise
@@ -409,22 +436,30 @@ Provide thoughtful and creative {genre} movie concepts, ending with:
             }
     
     def custom_search(self, query: str) -> Dict[str, Any]:
-        """Perform a custom search with any user-provided query"""
+        """Perform a custom search with any user-provided query using semantic search"""
         try:
-            # Get articles for context
-            articles = self.search_articles_by_metadata()
+            # Use semantic search to find relevant articles based on the query
+            articles = self.semantic_search(query, top_k=10)
             
             if not articles:
                 return {
                     'success': False,
-                    'error': 'No articles found in database',
-                    'answer': 'No articles available for analysis',
+                    'error': 'No relevant articles found for the query',
+                    'answer': f'No articles found that match your search: "{query}"',
                     'source_articles': [],
                     'query': query
                 }
             
-            # Use general genre analysis
-            answer = self.generate_movie_ideas(articles, "general", query)
+            # Extract genre from query or use general
+            genre = "general"
+            if any(word in query.lower() for word in ["thriller", "horror", "comedy", "drama", "action", "romance"]):
+                for word in ["thriller", "horror", "comedy", "drama", "action", "romance"]:
+                    if word in query.lower():
+                        genre = word
+                        break
+            
+            # Generate movie ideas based on semantic search results
+            answer = self.generate_movie_ideas(articles, genre, query)
             
             return {
                 'success': True,

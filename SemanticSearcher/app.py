@@ -46,6 +46,76 @@ st.markdown("""
         margin: 0.5rem 0;
         border-left: 4px solid #4ECDC4;
     }
+    
+    /* Universal dark mode text styling */
+    .stMarkdown * {
+        color: inherit !important;
+    }
+    
+    /* Dark theme detection and styling */
+    html[data-theme="dark"] .stMarkdown h1,
+    html[data-theme="dark"] .stMarkdown h2, 
+    html[data-theme="dark"] .stMarkdown h3,
+    html[data-theme="dark"] .stMarkdown h4,
+    html[data-theme="dark"] .stMarkdown h5,
+    html[data-theme="dark"] .stMarkdown h6 {
+        color: #ffffff !important;
+    }
+    
+    html[data-theme="dark"] .stMarkdown p,
+    html[data-theme="dark"] .stMarkdown li,
+    html[data-theme="dark"] .stMarkdown ul,
+    html[data-theme="dark"] .stMarkdown ol,
+    html[data-theme="dark"] .stMarkdown span,
+    html[data-theme="dark"] .stMarkdown strong,
+    html[data-theme="dark"] .stMarkdown em {
+        color: #e0e0e0 !important;
+    }
+    
+    /* Fallback for dark mode detection via CSS media query */
+    @media (prefers-color-scheme: dark) {
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, 
+        .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+            color: #ffffff !important;
+        }
+        
+        .stMarkdown p, .stMarkdown li, .stMarkdown ul, 
+        .stMarkdown ol, .stMarkdown span, .stMarkdown strong, 
+        .stMarkdown em, .stMarkdown div {
+            color: #e0e0e0 !important;
+        }
+        
+        .article-card {
+            background-color: #2b2b2b !important;
+            color: #e0e0e0 !important;
+        }
+        
+        .article-card h4 {
+            color: #ffffff !important;
+        }
+    }
+    
+    /* Streamlit component specific styling */
+    [data-testid="stMarkdownContainer"] * {
+        color: inherit !important;
+    }
+    
+    /* Additional fallback - force text visibility */
+    .main .block-container .stMarkdown {
+        color: var(--text-color);
+    }
+    
+    .main .block-container .stMarkdown h1,
+    .main .block-container .stMarkdown h2,
+    .main .block-container .stMarkdown h3,
+    .main .block-container .stMarkdown h4 {
+        color: var(--text-color);
+    }
+    
+    .main .block-container .stMarkdown p,
+    .main .block-container .stMarkdown li {
+        color: var(--text-color);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -141,8 +211,9 @@ def main():
             
             if result['success']:
                 st.markdown(f"### 🎬 {genre} Movie Ideas")
-                # Display the answer with proper markdown formatting
-                st.markdown(result["answer"])
+                # Display the answer with proper markdown formatting and dark mode styling
+                with st.container():
+                    st.markdown(f'<div style="color: inherit;">{result["answer"]}</div>', unsafe_allow_html=True)
                 
                 if result.get('source_articles'):
                     st.markdown("### 📰 Source Articles")
@@ -177,8 +248,9 @@ def main():
             
             if result['success']:
                 st.markdown(f"### 🎬 {genre2} Movies from {target_date}")
-                # Display the answer with proper markdown formatting
-                st.markdown(result["answer"])
+                # Display the answer with proper markdown formatting and dark mode styling
+                with st.container():
+                    st.markdown(f'<div style="color: inherit;">{result["answer"]}</div>', unsafe_allow_html=True)
                 
                 if result.get('source_articles'):
                     st.markdown("### 📰 Source Articles")
@@ -210,8 +282,9 @@ def main():
             
             if result['success']:
                 st.markdown(f"### 💡 {genre3} Plot Suggestions")
-                # Display the answer with proper markdown formatting
-                st.markdown(result["answer"])
+                # Display the answer with proper markdown formatting and dark mode styling
+                with st.container():
+                    st.markdown(f'<div style="color: inherit;">{result["answer"]}</div>', unsafe_allow_html=True)
                 
                 if result.get('source_articles'):
                     st.markdown("### 📰 Inspiring Articles")
@@ -246,8 +319,9 @@ def main():
             
             if result['success']:
                 st.markdown("### 🎬 Search Results")
-                # Display the answer with proper markdown formatting
-                st.markdown(result["answer"])
+                # Display the answer with proper markdown formatting and dark mode styling
+                with st.container():
+                    st.markdown(f'<div style="color: inherit;">{result["answer"]}</div>', unsafe_allow_html=True)
                 
                 if result.get('source_articles'):
                     st.markdown("### 📰 Source Articles")
